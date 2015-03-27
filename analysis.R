@@ -1,11 +1,11 @@
 # PSYC 201b Group Project
-# Damon Crockett
+# Damon Crockett, Qi Cheng, Anne Therese Frederiksen
 
 ######################
 ## Import and Clean ##
 ######################
 
-d = read.csv('handshape_clean.csv')
+d = read.csv('handshape_and_frequency_clean_var2.csv')
 d$X = NULL
 
 d$ohs = as.logical(d$ohs)
@@ -15,7 +15,8 @@ d$thsd = as.logical(d$thsd)
 d$thds = as.logical(d$thds)
 d$thdd = as.logical(d$thdd)
 
-d$type = names(d[4:9])[apply(d[4:9] == 1, 1, which)]
+# creates single factor from 6 Booleans
+d$type = names(d[7:12])[apply(d[7:12] == 1, 1, which)]
 d$type = as.factor(d$type)
 
 d$ohs = NULL
@@ -25,90 +26,133 @@ d$thsd = NULL
 d$thds = NULL
 d$thdd = NULL
 
-write.csv(d,'/home/damoncrockett/PSYC201/group_project/handshape_cleaner.csv')
+write.csv(d,'/home/damoncrockett/PSYC201/group_project/handshape_and_frequency_cleaner_var2.csv')
 
 #####################
 ####   Analysis  ####
 #####################
 
-d0 = read.csv('handshape_cleaner.csv')
-d = read.csv('handshape_and_frequency_cleaner.csv')
+dc = read.csv('handshape_cleaner_var_compound.csv')
+d = read.csv('handshape_and_frequency_cleaner_var2.csv')
 
+# models
 
 library(lme4)
 
-summary(lmer(data=d, duration ~ type +
-               (1|consultant)))
+m0 = lmer(data=d, duration ~ 1 +
+            (1|consultant))
 
-summary(lmer(data=d0, duration ~ type +
-               (1|consultant)))
+m1 = lmer(data=d, duration ~ 1 +
+            (1|consultant) +
+            (1|gloss))
+
+m2 = lmer(data=d, duration ~ type +
+               (1|consultant) +
+               (1|gloss))
+
+m3 = lmer(data=d, duration ~ Lg10WF +
+               (1|consultant) +
+               (1|gloss))
+
+m4 = lmer(data=d, duration ~ Lg10WF + type +
+               (1|consultant) +
+               (1|gloss))
+
+m5 = lm(data=d, Lg10WF ~ type)
 
 
-d0$oh = ((d0$type == 'ohs') | (d0$type == 'ohd'))
-d0$diff = d0$type == 'ohd' | d0$type == 'thdd' | d0$type == 'thsd' | d0$type == 'thds'
-d0$th_diff = d0$type == 'thdd' | d0$type == 'thsd' | d0$type == 'thds'
-d0$nd_diff = d0$type == 'thdd' | d0$type == 'thsd'
-d0$nd_diff = d0$type == 'thdd' | d0$type == 'thsd'
-d0$thsd = d0$type == 'thsd'
+summary(m4)
+summary(m2)
+anova(m5)
 
-summary(lmer(data=d0, duration ~ oh +
-               (1|consultant)))
+# ANOVAs
 
-summary(lmer(data=d0, duration ~ diff +
-               (1|consultant)))
+anova(m0,m1,m2)
+anova(m1,m3,m4)
 
-summary(lmer(data=d0, duration ~ th_diff +
-               (1|consultant)))
+# the compound glosses
 
-summary(lmer(data=d0, duration ~ nd_diff +
-               (1|consultant)))
-
-summary(lmer(data=d0, duration ~ thsd +
-               (1|consultant)))
+qplot(dc$type)
+qplot(d$type)
 
 
 #####################
-#####   Plotz  ######
+#####   Plots  ######
 #####################
 
 library(ggplot2)
-ggplot(d0[d0$duration < 150,],aes(consultant,duration)) + geom_point(aes(color=consultant))
-ggplot(d0[d0$duration < 150,],aes(type,duration)) + geom_point(aes(color=consultant))
 
-ggplot(d0[d0$duration < 150,],aes(type)) + geom_histogram()
-ggplot(d0[d0$duration < 150,],aes(type,duration)) + geom_boxplot(aes(color=type))
+ggplot(d, aes(x=Lg10WF)) + 
+  geom_histogram(fill='white', color='black', binwidth = .1) +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "white"),
+        panel.grid.minor = element_line(color = "white"),
+        plot.background = element_rect(fill = "white"),
+        axis.text = element_text(size=rel(.9), color='black'),
+        text = element_text(family='arial', face='plain', color='black', size = 18)) +
+  labs(x='LOG FREQUENCY',y='COUNT', title='COUNTS BY LOG FREQUENCY')
 
-ggplot(d,aes(freq,duration)) + geom_point(aes(color=consultant))
-ggplot(d,aes(consultant,duration)) + geom_point(aes(color=consultant))
-ggplot(d,aes(type,duration)) + geom_point(aes(color=consultant))
-ggplot(d,aes(type,freq)) + geom_point(aes(color=consultant))
+ggplot(d, aes(x=duration)) + 
+  geom_histogram(fill='white', color='black', binwidth = 2) +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "white"),
+        panel.grid.minor = element_line(color = "white"),
+        plot.background = element_rect(fill = "white"),
+        axis.text = element_text(size=rel(0.9), color='black'),
+        text = element_text(family='arial', face='plain', color='black', size = 18)) +
+  labs(x='DURATION IN TENS OF MILLISECONDS',y='COUNT', title='COUNTS BY DURATION')
+
+d$ordered_type = d$type
+d$ordered_type = factor(d$ordered_type, levels(d$ordered_type)[c(1,3,5,2,4,6)]) 
+
+ggplot(d, aes(ordered_type, color=type)) + 
+  geom_histogram(aes(fill=type)) +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "white"),
+        panel.grid.minor = element_line(color = "white"),
+        plot.background = element_rect(fill = "white"),
+        axis.text = element_text(size=rel(1.2), color='black'),
+        text = element_text(family='arial', face='plain', color='black', size = 18)) +
+  labs(x='SIGN TYPES ORDERED BY ASCENDING DURATION',y='COUNT', title='COUNTS BY SIGN TYPE')
+
+# note: this package must be installed separately
+
+library(coefplot2)
+
+coefplot2(m4,
+          cex.var = 1,
+          cex.pts = 2,
+          cex.axis = 5)
+
+coefplot2(m2,
+          cex.var = 2,
+          cex.pts = 2,
+          cex.axis = 5)
+
+coefplot2(m5,
+          cex.var = 1,
+          cex.pts = 2,
+          cex.axis = 5)
 
 
+w = read.csv('word_length.csv')
 
+ggplot(w[w$length<20,], aes(x=Lg10WF, y = length)) + 
+  geom_point(color='black', alpha=0.1) +
+  theme(panel.background = element_rect(fill = "white"),
+        panel.grid.major = element_line(color = "white"),
+        panel.grid.minor = element_line(color = "white"),
+        plot.background = element_rect(fill = "white"),
+        axis.text = element_text(size=rel(0.9), color='black'),
+        text = element_text(family='arial', face='plain', color='black', size = 22)) +
+  labs(x='LOG FREQUENCY IN SUBTLEX CORPUS',y='WORD LENGTH IN ENGLISH', title='WORD LENGTH BY SUBTLEX LOG FREQUENCY') +
+  stat_smooth(method='lm', formula=y~x, se=T)
 
+with(w,(cor.test(Lg10WF,length)))
 
-
-#####################
-#####  Tablez  ######
-#####################
-
-table(d0$type)
-
-library(plyr)
-
-by_type = ddply(d0, c('type'), summarize,
-                duration=mean(duration))
-
-
-
-
-
-
-
-
-
-
-
-
+qplot(d$Lg10WF)
+qplot(log10(d$FREQcount + 1))
+qplot(d$FREQcount)
+qplot(d$SUBTLWF)
 
 
